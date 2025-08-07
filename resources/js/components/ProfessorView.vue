@@ -1,51 +1,48 @@
 <template>
   <div class="pagina">
     <div class="titulo">
-      <h1>Cadastrar Sala</h1>
+      <h1>Cadastrar Professor</h1>
     </div>
 
     <div class="caixa-cinza">
-      <!-- Barra de pesquisa e botões -->
       <div class="barra-superior">
-        <div class="relative w-60">
-  <input
-    v-model="termoPesquisa"
-    @input="aplicarFiltro"
-    type="text"
-    placeholder="Pesquisar..."
-    class="search-bar w-full"
-  />
-</div>
-
+        <div class="relative w-full max-w-[240px]">
+          <input
+            v-model="termoPesquisa"
+            @input="aplicarFiltro"
+            type="text"
+            placeholder="Pesquisar..."
+            class="search-bar w-full"
+          />
+        </div>
 
         <button @click="abrirModalCriar" class="new-btn">
           <span class="material-icons">add</span> Novo
         </button>
       </div>
 
-      <!-- Tabela -->
       <table>
         <thead>
           <tr>
-            <th>Salas</th>
-            <th>Quantidade de lugares</th>
+            <th>Nome</th>
+            <th>Email</th>
             <th colspan="2">Ações</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="sala in salasFiltradas" :key="sala.id_sala">
-            <td>{{ sala.nome }}</td>
-            <td>{{ sala.capacidade }}</td>
+          <tr v-for="professor in professoresFiltrados" :key="professor.id">
+            <td>{{ professor.nome }}</td>
+            <td>{{ professor.email }}</td>
             <td class="acoes" colspan="2">
               <div class="botao-coluna">
                 <span class="botao-texto">Editar</span>
-                <button @click="abrirModalEditar(sala)" class="icon-btn">
+                <button @click="abrirModalEditar(professor)" class="icon-btn">
                   <span class="material-icons">edit</span>
                 </button>
               </div>
               <div class="botao-coluna">
                 <span class="botao-texto">Excluir</span>
-                <button @click="deletarSala(sala.id_sala)" class="icon-btn delete">
+                <button @click="deletarProfessor(professor.id)" class="icon-btn delete">
                   <span class="material-icons">close</span>
                 </button>
               </div>
@@ -55,25 +52,26 @@
       </table>
     </div>
 
-    <!-- Modal -->
-    <div v-if="modalAberto" class="modal-overlay">
+    <div v-if="modalAberta" class="modal-overlay">
       <div class="modal-content">
         <div class="modal-header">
-          <h2>{{ editando ? 'Editar Sala' : 'Nova Sala' }}</h2>
+          <h2>{{ editando ? 'Editar Professor' : 'Novo Professor' }}</h2>
           <button @click="fecharModal" class="fechar-btn">
             <span class="material-icons">close</span>
           </button>
         </div>
-        <form @submit.prevent="editando ? atualizarSala() : criarSala()">
+        <form @submit.prevent="salvarProfessor">
           <div class="form-group">
-            <label>Sala</label>
+            <label>Nome</label>
             <input v-model="form.nome" type="text" required />
-            <span v-if="!form.nome" class="error">*Obrigatório</span>
           </div>
           <div class="form-group">
-            <label>Quantidade de Lugares</label>
-            <input v-model="form.capacidade" type="number" required />
-            <span v-if="!form.capacidade" class="error">*Obrigatório</span>
+            <label>Email</label>
+            <input v-model="form.email" type="email" required />
+          </div>
+          <div class="form-group">
+            <label>Senha</label>
+            <input v-model="form.senha" type="password" :required="!editando" />
           </div>
           <div class="botoes-modal">
             <button type="button" @click="fecharModal" class="cancelar-btn">Cancelar</button>
@@ -93,115 +91,111 @@ import _ from 'lodash'
 import Swal from 'sweetalert2'
 
 export default {
+  name: 'ProfessorView',
   data() {
     return {
-      salas: [],
+      professores: [],
+      professoresFiltrados: [],
       termoPesquisa: '',
-      salasFiltradas: [],
-      modalAberto: false,
+      modalAberta: false,
       editando: false,
-      salaEditandoId: null,
+      professorEditandoId: null,
       form: {
         nome: '',
-        capacidade: ''
+        email: '',
+        senha: ''
       }
-    }
+    };
+  },
+  mounted() {
+    this.buscarProfessores();
   },
   methods: {
-    async buscarSalas() {
+    async buscarProfessores() {
       try {
-        const res = await axios.get('/api/salas')
-        this.salas = res.data
-        this.salasFiltradas = res.data
+        const res = await axios.get('/api/professores');
+        this.professores = res.data;
+        this.professoresFiltrados = res.data;
       } catch (error) {
-        console.error('Erro ao buscar salas:', error)
+        console.error('Erro ao buscar professores:', error);
       }
     },
     normalizar(texto) {
-      return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+      return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
     },
     aplicarFiltro: _.debounce(function () {
-      const termo = this.normalizar(this.termoPesquisa)
-      this.salasFiltradas = this.salas.filter(sala =>
-        this.normalizar(sala.nome).includes(termo) ||
-        sala.capacidade.toString().includes(termo)
-      )
+      const termo = this.normalizar(this.termoPesquisa);
+      this.professoresFiltrados = this.professores.filter(professor =>
+        this.normalizar(professor.nome).includes(termo) ||
+        this.normalizar(professor.email).includes(termo)
+      );
     }, 300),
-    limparFiltro() {
-      this.termoPesquisa = ''
-      this.aplicarFiltro()
+    abrirModalCriar() {
+      this.form = { nome: '', email: '', senha: '' };
+      this.editando = false;
+      this.modalAberta = true;
     },
-    async deletarSala(id) {
+    abrirModalEditar(professor) {
+      this.form = { nome: professor.nome, email: professor.email, senha: '' };
+      this.professorEditandoId = professor.id;
+      this.editando = true;
+      this.modalAberta = true;
+    },
+    fecharModal() {
+      this.modalAberta = false;
+    },
+    async salvarProfessor() {
+      try {
+        const payload = {
+          nome: this.form.nome,
+          email: this.form.email
+        };
+
+        if (!this.editando || this.form.senha) {
+          payload.senha = this.form.senha;
+        }
+
+        if (this.editando) {
+          await axios.put(`/api/professores/${this.professorEditandoId}`, payload);
+          Swal.fire('Atualizado!', 'Professor atualizado com sucesso.', 'success');
+        } else {
+          await axios.post('/api/professores', payload);
+          Swal.fire('Cadastrado!', 'Professor cadastrado com sucesso.', 'success');
+        }
+
+        this.fecharModal();
+        this.buscarProfessores();
+      } catch (error) {
+        const mensagem = error.response?.data?.message || 'Erro ao salvar professor.';
+        Swal.fire('Erro!', mensagem, 'error');
+        console.error(error);
+      }
+    },
+    async deletarProfessor(id) {
       const confirmacao = await Swal.fire({
         title: 'Tem certeza?',
-        text: 'Você deseja excluir esta sala?',
+        text: 'Você deseja excluir este professor?',
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#FF6F00',
         cancelButtonColor: '#505050',
         confirmButtonText: 'Sim, excluir!',
         cancelButtonText: 'Cancelar'
-      })
+      });
 
       if (confirmacao.isConfirmed) {
         try {
-          await axios.delete(`/api/salas/${id}`)
-          this.salas = this.salas.filter(sala => sala.id_sala !== id)
-          this.aplicarFiltro()
-          Swal.fire('Excluído!', 'A sala foi excluída.', 'success')
+          await axios.delete(`/api/professores/${id}`);
+          this.buscarProfessores();
+          Swal.fire('Excluído!', 'O professor foi excluído.', 'success');
         } catch (error) {
-          Swal.fire('Erro!', 'Não foi possível excluir a sala.', 'error')
+          Swal.fire('Erro!', 'Não foi possível excluir o professor.', 'error');
         }
-      }
-    },
-    abrirModalCriar() {
-      this.form = { nome: '', capacidade: '' }
-      this.editando = false
-      this.modalAberto = true
-    },
-    abrirModalEditar(sala) {
-      this.form = { nome: sala.nome, capacidade: sala.capacidade }
-      this.salaEditandoId = sala.id_sala
-      this.editando = true
-      this.modalAberto = true
-    },
-    fecharModal() {
-      this.modalAberto = false
-    },
-    async criarSala() {
-      try {
-        const res = await axios.post('/api/salas', this.form)
-        this.salas.push(res.data)
-        this.aplicarFiltro()
-        this.fecharModal()
-        Swal.fire('Sucesso!', 'Sala cadastrada com sucesso.', 'success')
-      } catch (error) {
-        const msg = error.response?.data?.message || 'Erro ao cadastrar sala.'
-        Swal.fire('Erro!', msg, 'error')
-      }
-    },
-    async atualizarSala() {
-      try {
-        const res = await axios.put(`/api/salas/${this.salaEditandoId}`, this.form)
-        const index = this.salas.findIndex(sala => sala.id_sala === this.salaEditandoId)
-        if (index !== -1) {
-          this.salas[index] = { ...res.data }
-          this.aplicarFiltro()
-        }
-        this.fecharModal()
-        Swal.fire('Atualizado!', 'Sala atualizada com sucesso.', 'success')
-      } catch (error) {
-        const msg = error.response?.data?.message || 'Erro ao atualizar sala.'
-        Swal.fire('Erro!', msg, 'error')
       }
     }
-  },
-  mounted() {
-    this.buscarSalas()
   }
-}
+};
 </script>
-
 
 <style scoped>
 @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
@@ -216,7 +210,6 @@ export default {
   overflow-x: hidden;
 }
 
-
 .titulo h1 {
   text-align: center;
   font-size: 4rem;
@@ -224,7 +217,6 @@ export default {
   font-weight: bold;
   margin-bottom: 20px;
 }
-
 
 .caixa-cinza {
   background-color: #505050;
@@ -242,7 +234,6 @@ export default {
   margin-bottom: 20px;
   flex-wrap: wrap;
 }
-
 .barra-superior .flex {
   display: flex;
   align-items: center;
@@ -261,13 +252,11 @@ export default {
   position: relative; /* não obrigatório, mas pode manter */
 }
 
-
 .search-bar::placeholder {
   color: white;
   opacity: 1;
 }
 
-.filter-btn,
 .new-btn {
   background: #FF6F00;
   border: none;
@@ -282,11 +271,11 @@ export default {
   cursor: pointer;
 }
 
-.filter-btn:hover,
 .new-btn:hover {
   background: #FF8533;
 }
 
+/* Tabela */
 table {
   width: 100%;
   background: rgba(255, 255, 255, 0.7);
@@ -340,6 +329,7 @@ td.acoes {
   color: red;
 }
 
+/* Modal */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -382,18 +372,13 @@ td.acoes {
 }
 
 input[type="text"],
-input[type="number"] {
+input[type="email"],
+input[type="password"] {
   padding: 10px;
   border-radius: 10px;
   border: none;
   background-color: #666;
   color: white;
-}
-
-.error {
-  color: #FF6F00;
-  font-size: 0.9rem;
-  margin-top: 5px;
 }
 
 .botoes-modal {
