@@ -2,18 +2,21 @@
 
 namespace App\Models;
 
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Hash;
+use Laravel\Sanctum\HasApiTokens;
 
-class Professor extends Model
+class Professor extends Authenticatable
 {
-    use HasFactory;
+    use HasApiTokens, HasFactory;
 
+    protected $table = 'professors';        // usa a tabela 'professors'
     protected $fillable = ['nome', 'email', 'senha'];
+    protected $hidden   = ['senha'];        // não retornar hash em JSON
 
+    // sempre criptografa a senha
     public function setSenhaAttribute($value)
     {
-        $this->attributes['senha'] = Hash::make($value);
+        $this->attributes['senha'] = \Hash::make($value);
     }
 }

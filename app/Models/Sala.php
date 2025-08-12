@@ -9,12 +9,9 @@ class Sala extends Model
 {
     use HasFactory;
 
-    public $timestamps = false; // <-- Isso aqui
-
     protected $table = 'salas';
-    protected $primaryKey = 'id_sala'; // 👈 isso resolve o problema
-    public $incrementing = true;
-    protected $fillable = ['nome', 'capacidade'];
+    protected $primaryKey = 'id_sala';
+    public $timestamps = false;
+
+    protected $fillable = ['nome','capacidade'];
 }
-
-

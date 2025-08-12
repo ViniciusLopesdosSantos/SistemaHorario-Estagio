@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Professor;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 
 class ProfessorController extends Controller
 {
@@ -16,7 +15,7 @@ class ProfessorController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nome' => 'required|string|max:255',
+            'nome'  => 'required|string|max:255',
             'email' => 'required|email|unique:professors,email',
             'senha' => 'required|string|min:6',
         ]);
@@ -34,15 +33,12 @@ class ProfessorController extends Controller
         $professor = Professor::findOrFail($id);
 
         $validated = $request->validate([
-            'nome' => 'sometimes|required|string|max:255',
-            'email' => 'sometimes|required|email|unique:professors,email,' . $id,
+            'nome'  => 'sometimes|required|string|max:255',
+            'email' => 'sometimes|required|email|unique:professors,email,'.$id,
             'senha' => 'nullable|string|min:6',
         ]);
 
-        if (isset($validated['senha'])) {
-            $validated['senha'] = Hash::make($validated['senha']);
-        }
-
+        // NÃO hashear aqui; deixe o mutator do model fazer isso
         $professor->update($validated);
 
         return $professor;

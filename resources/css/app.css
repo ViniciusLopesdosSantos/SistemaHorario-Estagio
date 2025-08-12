@@ -1,10 +1,17 @@
+@import 'https://fonts.googleapis.com/icon?family=Material+Icons';
+
+/* Se usar Tailwind */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* RESET do layout base */
 html, body, #app {
-  margin: 0;
-  padding: 0;
-  width: 100%;
   height: 100%;
+  margin: 0;         /* remove a borda branca do body */
+  padding: 0;
+  background: #FF6528; /* mantém o fundo laranja por baixo de tudo */
 }
+
+* { box-sizing: border-box; }
+

@@ -8,50 +8,31 @@ use Illuminate\Validation\Rule;
 
 class SalaController extends Controller
 {
-    public function index()
-    {
-        $salas = Sala::all();
-        return response()->json($salas);
-    }
+    public function index()       { return Sala::all(); }
+    public function show(Sala $s) { return $s; }
 
-    public function store(Request $request)
+    public function store(Request $req)
     {
-        $validatedData = $request->validate([
-            'nome' => 'required|string|max:255|unique:salas,nome',
+        $v = $req->validate([
+            'nome'       => 'required|string|unique:salas,nome',
             'capacidade' => 'required|integer|min:1',
         ]);
-
-        $sala = Sala::create($validatedData);
-
-        return response()->json($sala, 201);
+        return Sala::create($v);
     }
 
-    public function show(Sala $sala)
+    public function update(Request $req, Sala $s)
     {
-        return response()->json($sala);
-    }
-
-    public function update(Request $request, Sala $sala)
-    {
-        $validatedData = $request->validate([
-            'nome' => [
-                'required',
-                'string',
-                'max:255',
-                Rule::unique('salas')->ignore($sala->id_sala, 'id_sala')
-            ],
+        $v = $req->validate([
+            'nome'       => ['required','string',Rule::unique('salas','nome')->ignore($s->id_sala)],
             'capacidade' => 'required|integer|min:1',
         ]);
-
-        $sala->update($validatedData);
-
-        return response()->json($sala, 200);
+        $s->update($v);
+        return $s;
     }
 
-    public function destroy(Sala $sala)
+    public function destroy(Sala $s)
     {
-        $sala->delete();
-
-        return response()->json(null, 204);
+        $s->delete();
+        return response()->noContent();
     }
 }

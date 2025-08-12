@@ -257,7 +257,7 @@ export default {
   padding: 0 30px 0 15px; /* espaço maior à direita */
   font-size: 0.95rem;
   border: none;
-  color: rgb(255, 255, 255);
+  color: black;
   position: relative; /* não obrigatório, mas pode manter */
 }
 

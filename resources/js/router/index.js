@@ -1,16 +1,27 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import SalaPage from '../views/SalaPage.vue'
-import ProfessorPage from '../views/ProfessorPage.vue'
+import LoginView from '@/components/LoginView.vue'
+import SalaView from '@/components/SalaView.vue'
+import ProfessorView from '@/components/ProfessorView.vue'
 
 const routes = [
-  { path: '/salas', name: 'Salas', component: SalaPage },
-  { path: '/professores', name: 'Professores', component: ProfessorPage },
+  { path: '/login', name: 'login', component: LoginView }, // pública
+  { path: '/salas', name: 'salas', component: SalaView, meta: { requiresAuth: true } },
+  { path: '/professores', name: 'professores', component: ProfessorView, meta: { requiresAuth: true } },
   { path: '/', redirect: '/salas' },
 ]
 
-export default createRouter({
+const router = createRouter({
   history: createWebHistory(),
-  routes,
+  routes
 })
 
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('api_token')
 
+  if (to.meta.requiresAuth && !token) return next({ name: 'login' })
+  if (to.name === 'login' && token)   return next({ name: 'salas' })
+
+  next()
+})
+
+export default router
