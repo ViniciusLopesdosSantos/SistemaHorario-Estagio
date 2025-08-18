@@ -14,4 +14,10 @@ class Sala extends Model
     public $timestamps = false;
 
     protected $fillable = ['nome','capacidade'];
+
+    // 🔧 importante para {sala} nas rotas funcionar por id_sala
+    public function getRouteKeyName()
+    {
+        return 'id_sala';
+    }
 }

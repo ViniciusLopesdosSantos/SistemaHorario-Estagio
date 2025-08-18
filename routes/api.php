@@ -1,23 +1,26 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\SalaController;
 use App\Http\Controllers\ProfessorController;
+use App\Http\Controllers\SalaController;
+use App\Http\Controllers\TurmaController;
+use Illuminate\Support\Facades\Route;
+use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
 
-Route::post('/login', [AuthController::class, 'login'])->name('login');
+// Rota de login
+Route::middleware([EnsureFrontendRequestsAreStateful::class])->group(function () {
+    Route::post('/login', [AuthController::class, 'login']);
+});
 
+// Rotas protegidas por Sanctum, exigem autenticação
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/me',      [AuthController::class, 'me']);
-
-    // Salas
-    Route::get   ('/salas',        [SalaController::class, 'index']);
-    Route::post  ('/salas',        [SalaController::class, 'store']);
-    Route::get   ('/salas/{sala}', [SalaController::class, 'show']);
-    Route::put   ('/salas/{sala}', [SalaController::class, 'update']);
-    Route::delete('/salas/{sala}', [SalaController::class, 'destroy']);
-
-    // Professores
+    // CRUD de professores
     Route::apiResource('professores', ProfessorController::class);
+
+    // CRUD de salas
+    Route::apiResource('salas', SalaController::class);
+
+    // CRUD de turmas
+    Route::apiResource('turmas', TurmaController::class);
 });

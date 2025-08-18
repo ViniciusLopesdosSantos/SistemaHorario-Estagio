@@ -14,9 +14,10 @@ class Professor extends Authenticatable
     protected $fillable = ['nome', 'email', 'senha'];
     protected $hidden   = ['senha'];        // não retornar hash em JSON
 
-    // sempre criptografa a senha
-    public function setSenhaAttribute($value)
-    {
-        $this->attributes['senha'] = \Hash::make($value);
-    }
+    // Criptografa a senha ao ser salva
+   public function setSenhaAttribute($value)
+{
+    $this->attributes['senha'] = \Hash::make($value);
+}
+
 }

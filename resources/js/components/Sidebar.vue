@@ -15,6 +15,11 @@
         <span class="material-icons">school</span>
         <span>Professores</span>
       </router-link>
+
+      <router-link to="/turmas" class="nav-link" active-class="active">
+    <span class="material-icons">groups</span>
+    <span>Turmas</span>
+  </router-link>
     </nav>
 
     <div class="bottom">

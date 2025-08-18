@@ -32,7 +32,6 @@
 
         <div class="options">
           <label><input type="checkbox" v-model="form.remember" /> Lembre de mim</label>
-          <span></span>
         </div>
 
         <button type="submit" class="btn-login">Entrar</button>
@@ -45,8 +44,8 @@
 
 <script>
 import axios from 'axios'
+
 export default {
-  name: 'LoginView',
   data() {
     return {
       form: { email: '', senha: '', remember: false },
@@ -55,7 +54,6 @@ export default {
     }
   },
   mounted() {
-    // recupera preferências do usuário
     const remembered = localStorage.getItem('remember_login') === '1'
     const rememberedEmail = localStorage.getItem('remember_email') || ''
     if (remembered) {
@@ -64,39 +62,38 @@ export default {
     }
   },
   methods: {
-    async doLogin() {
-      this.error = null
-      try {
-        const res = await axios.post('/api/login', {
-          email: this.form.email,
-          senha: this.form.senha,
-          remember: this.form.remember, // <-- manda para API
-        })
+ async doLogin() {
+  this.error = null
+  try {
+    const res = await axios.post('/api/login', {
+      email: this.form.email,
+      senha: this.form.senha, 
+      remember: this.form.remember,
+    });
 
-        // token + usuário
-        localStorage.setItem('api_token', res.data.token)
-        localStorage.setItem('user', JSON.stringify(res.data.professor))
-        axios.defaults.headers.common['Authorization'] = 'Bearer ' + res.data.token
+    // Armazena o token e o usuário no localStorage
+    localStorage.setItem('api_token', res.data.token);
+    localStorage.setItem('user', JSON.stringify(res.data.professor));
+    axios.defaults.headers.common['Authorization'] = 'Bearer ' + res.data.token;
 
-        // lembrar e-mail se marcado
-        if (this.form.remember) {
-          localStorage.setItem('remember_login', '1')
-          localStorage.setItem('remember_email', this.form.email)
-        } else {
-          localStorage.removeItem('remember_login')
-          localStorage.removeItem('remember_email')
-        }
-
-        this.$router.push('/salas')
-      } catch (err) {
-        this.error = err.response?.data?.message || 'Erro ao efetuar login.'
-      }
+    // Lógica para lembrar o login
+    if (this.form.remember) {
+      localStorage.setItem('remember_login', '1');
+      localStorage.setItem('remember_email', this.form.email);
+    } else {
+      localStorage.removeItem('remember_login');
+      localStorage.removeItem('remember_email');
     }
+
+    this.$router.push('/salas');
+  } catch (err) {
+    this.error = err.response?.data?.message || 'Erro ao efetuar login.';
+  }
+}
+
   }
 }
 </script>
-
-
 
 <style scoped>
 /* Área laranja de fundo */
@@ -110,13 +107,13 @@ export default {
 
 /* Card escuro grande, arredondado, como no protótipo */
 .login-card{
-  background:#000000;            /* bem escuro */
+  background:#000000;            
   color:#fff;
   width:100%;
-  max-width:720px;                /* card maior */
+  max-width:720px;                
   padding:3.5rem 3rem;
   border-radius:24px;
-  text-align:left;                /* títulos/labels à esquerda */
+  text-align:left;                
   box-shadow:0 10px 30px rgba(0,0,0,.25);
   position:relative;
 }
@@ -147,22 +144,20 @@ h1{
   margin:0 0 10px;
 }
 
-/* Container do input com ícones internos */
 .input-icon{
   position:relative;
 }
 
-/* Input grande, branco, com “respiro” p/ ícones */
 .input-icon input{
   box-sizing:border-box;
   width:100%;
-  height:54px;                    /* altura consistente */
+  height:54px;
   background:#fff;
   color:#111;
   border:none;
   border-radius:12px;
-  padding:0 56px;                 /* espaço para o olho à direita */
-  padding-left:52px;              /* espaço para o ícone à esquerda */
+  padding:0 56px;                 
+  padding-left:52px;              
   font-size:15px;
   outline:none;
 }
@@ -170,7 +165,6 @@ h1{
   box-shadow:0 0 0 3px rgba(255,101,40,.35);
 }
 
-/* Ícone da esquerda (email/chave) centralizado verticalmente */
 .input-icon .material-icons{
   position:absolute;
   left:16px;
@@ -181,20 +175,17 @@ h1{
   pointer-events:none;
 }
 
-/* Olho da senha à direita, clicável */
 .input-icon .eye{
   position:absolute;
-  
   top:50%;
   transform:translateY(-50%);
   font-size:6px;
   color:#8a8a8a;
   cursor:pointer;
   user-select:none;
-  pointer-events:auto;   /* <-- garante que recebe clique */
+  pointer-events:auto;
 }
 
-/* Lembre de mim + espaçamento */
 .options{
   display:flex;
   align-items:center;
@@ -206,13 +197,12 @@ h1{
   font-size:15px;
 }
 
-/* Botão de entrar */
 .btn-login{
   width:100%;
   height:52px;
   border:none;
   border-radius:12px;
-  background:#FF6F00;            /* sua cor de ação */
+  background:#FF6F00;
   color:#fff;
   font-size:20px;
   font-weight:700;
@@ -222,7 +212,6 @@ h1{
 .btn-login:hover{ filter:brightness(1.05); }
 .btn-login:active{ transform:translateY(1px); }
 
-/* Mensagem de erro */
 .error{
   color:#ff8b8b;
   margin-top:16px;

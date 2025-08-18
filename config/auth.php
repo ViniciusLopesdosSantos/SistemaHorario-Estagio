@@ -8,22 +8,24 @@ return [
     ],
 
     'guards' => [
-        'web' => [
-            'driver'   => 'session',
-            'provider' => 'users',
-        ],
-        'api' => [
-            'driver'   => 'sanctum',
-            'provider' => 'users',
-        ],
+    'web' => [
+        'driver'   => 'session',
+        'provider' => 'users',
     ],
+    'api' => [
+        'driver'   => 'sanctum',
+        'provider' => 'users',
+    ],
+],
+
 
     'providers' => [
-        'users' => [
-            'driver' => 'eloquent',
-            'model'  => App\Models\Professor::class,
-        ],
+    'users' => [
+        'driver' => 'eloquent',
+        'model'  => App\Models\Professor::class,
     ],
+],
+
 
     'passwords' => [
         'users' => [

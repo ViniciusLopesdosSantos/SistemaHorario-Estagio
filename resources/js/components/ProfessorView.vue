@@ -166,10 +166,14 @@ export default {
         this.fecharModal();
         this.buscarProfessores();
       } catch (error) {
-        const mensagem = error.response?.data?.message || 'Erro ao salvar professor.';
-        Swal.fire('Erro!', mensagem, 'error');
-        console.error(error);
-      }
+  const errs = error.response?.data?.errors;
+  const msg = errs
+    ? Object.values(errs).flat()[0]
+    : (error.response?.data?.message || 'Erro ao salvar professor.');
+  Swal.fire('Erro!', msg, 'error');
+  console.error(error);
+}
+
     },
     async deletarProfessor(id) {
       const confirmacao = await Swal.fire({

@@ -176,25 +176,36 @@ export default {
         this.fecharModal()
         Swal.fire('Sucesso!', 'Sala cadastrada com sucesso.', 'success')
       } catch (error) {
-        const msg = error.response?.data?.message || 'Erro ao cadastrar sala.'
-        Swal.fire('Erro!', msg, 'error')
-      }
+  const errs = error.response?.data?.errors;
+  const msg = errs
+    ? Object.values(errs).flat()[0]
+    : (error.response?.data?.message || 'Erro ao cadastrar sala.');
+  Swal.fire('Erro!', msg, 'error');
+}
+
     },
-    async atualizarSala() {
-      try {
-        const res = await axios.put(`/api/salas/${this.salaEditandoId}`, this.form)
-        const index = this.salas.findIndex(sala => sala.id_sala === this.salaEditandoId)
+   // método para atualizar a sala
+async atualizarSala() {
+    try {
+        const res = await axios.put(`/api/salas/${this.salaEditandoId}`, this.form);
+        const index = this.salas.findIndex(sala => sala.id_sala === this.salaEditandoId);
         if (index !== -1) {
-          this.salas[index] = { ...res.data }
-          this.aplicarFiltro()
+            this.salas[index] = { ...res.data };
+            this.aplicarFiltro();
         }
-        this.fecharModal()
-        Swal.fire('Atualizado!', 'Sala atualizada com sucesso.', 'success')
-      } catch (error) {
-        const msg = error.response?.data?.message || 'Erro ao atualizar sala.'
-        Swal.fire('Erro!', msg, 'error')
-      }
-    }
+        this.fecharModal();
+        Swal.fire('Atualizado!', 'Sala atualizada com sucesso.', 'success');
+    } catch (error) {
+  const errs = error.response?.data?.errors;
+  const msg = errs
+    ? Object.values(errs).flat()[0]
+    : (error.response?.data?.message || 'Erro ao atualizar sala.');
+  Swal.fire('Erro!', msg, 'error');
+}
+
+}
+
+
   },
   mounted() {
     this.buscarSalas()
