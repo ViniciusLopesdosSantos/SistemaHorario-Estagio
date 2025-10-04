@@ -8,24 +8,31 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
-    public function login(Request $request)
+    public function login(Request $r)
     {
-        $request->validate([
+        $r->validate([
             'email' => 'required|email',
-            'senha' => 'required|string',
+            'password' => 'required_without:senha',
+            'senha' => 'nullable'
         ]);
 
-        $professor = Professor::where('email', $request->email)->first();
+        $plain = $r->input('password', $r->input('senha'));
 
-        if (!$professor || !Hash::check($request->senha, $professor->senha)) {
+        $p = Professor::where('email', $r->email)->first();
+        if (!$p || !Hash::check($plain, $p->senha)) {
             return response()->json(['message' => 'Credenciais inválidas.'], 401);
         }
 
-        $token = $professor->createToken('MeuApp')->plainTextToken;
-
+        $token = $p->createToken('web')->plainTextToken;
         return response()->json([
-            'professor' => $professor,
+            'professor' => ['id'=>$p->id,'nome'=>$p->nome,'email'=>$p->email],
             'token' => $token,
         ]);
+    }
+
+    public function logout(Request $r)
+    {
+        $r->user()->currentAccessToken()?->delete();
+        return response()->json(['ok'=>true]);
     }
 }

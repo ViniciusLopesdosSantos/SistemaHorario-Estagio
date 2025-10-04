@@ -1,26 +1,23 @@
 <?php
 
-
+use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProfessorController;
 use App\Http\Controllers\SalaController;
 use App\Http\Controllers\TurmaController;
-use Illuminate\Support\Facades\Route;
-use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
+use App\Http\Controllers\UnidadeCurricularController;
+use App\Http\Controllers\HorarioController;
 
-// Rota de login
-Route::middleware([EnsureFrontendRequestsAreStateful::class])->group(function () {
-    Route::post('/login', [AuthController::class, 'login']);
-});
+Route::post('/login', [AuthController::class, 'login']);
 
-// Rotas protegidas por Sanctum, exigem autenticação
 Route::middleware('auth:sanctum')->group(function () {
-    // CRUD de professores
+    Route::post('/logout', [AuthController::class, 'logout']);
+
     Route::apiResource('professores', ProfessorController::class);
-
-    // CRUD de salas
     Route::apiResource('salas', SalaController::class);
-
-    // CRUD de turmas
     Route::apiResource('turmas', TurmaController::class);
+    Route::apiResource('unidades-curriculares', UnidadeCurricularController::class);
+
+    Route::apiResource('horarios', HorarioController::class);
+    Route::get('horarios/turma/{turmaId}', [HorarioController::class, 'horariosPorTurma']);
 });
