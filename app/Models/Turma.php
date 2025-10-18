@@ -10,8 +10,16 @@ class Turma extends Model
     use HasFactory;
 
     protected $fillable = ['nome','representante','quantidade_alunos'];
+    protected $casts = ['quantidade_alunos' => 'integer'];
 
-    protected $casts = [
-        'quantidade_alunos' => 'integer',
-    ];
+    // RELAÇÕES
+    public function horarios()
+    {
+        return $this->hasMany(Horario::class, 'turma_id');
+    }
+
+    public function horarioFeito()
+    {
+        return $this->hasOne(HorarioFeito::class);
+    }
 }

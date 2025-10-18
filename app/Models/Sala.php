@@ -10,12 +10,12 @@ class Sala extends Model
     use HasFactory;
 
     protected $table = 'salas';
-    protected $primaryKey = 'id_sala';
-    public $timestamps = false;
+    protected $primaryKey = 'id_sala'; // Chave primária definida corretamente
+    public $timestamps = false; // Se não estiver usando timestamps
 
-    protected $fillable = ['nome','capacidade'];
+    protected $fillable = ['nome', 'capacidade'];
 
-    // 🔧 importante para {sala} nas rotas funcionar por id_sala
+    // Retorna a chave primária correta para as rotas
     public function getRouteKeyName()
     {
         return 'id_sala';

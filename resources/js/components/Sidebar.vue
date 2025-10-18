@@ -5,23 +5,30 @@
       <div class="title">Sistema de Horário</div>
     </div>
 
-    <nav class="nav">
-      <router-link to="/horarios" class="nav-link" active-class="active">
-        <span class="material-icons">calendar_month</span><span>Horários</span>
-      </router-link>
-      <router-link to="/salas" class="nav-link" active-class="active">
-        <span class="material-icons">meeting_room</span><span>Salas</span>
-      </router-link>
-      <router-link to="/professores" class="nav-link" active-class="active">
-        <span class="material-icons">school</span><span>Professores</span>
-      </router-link>
-      <router-link to="/turmas" class="nav-link" active-class="active">
-        <span class="material-icons">groups</span><span>Turmas</span>
-      </router-link>
-      <router-link to="/unidades-curriculares" class="nav-link" active-class="active">
-        <span class="material-icons">book</span><span>UCs</span>
-      </router-link>
-    </nav>
+ <nav class="nav">
+  <router-link to="/horarios" class="nav-link" active-class="active">
+    <span class="material-icons">calendar_month</span><span>Horários</span>
+  </router-link>
+
+  <!-- NOVO: Horários Feitos -->
+  <router-link to="/horarios-feitos" class="nav-link" active-class="active">
+    <span class="material-icons">fact_check</span><span>Horários Feitos</span>
+  </router-link>
+
+  <router-link to="/salas" class="nav-link" active-class="active">
+    <span class="material-icons">meeting_room</span><span>Salas</span>
+  </router-link>
+  <router-link to="/professores" class="nav-link" active-class="active">
+    <span class="material-icons">school</span><span>Professores</span>
+  </router-link>
+  <router-link to="/turmas" class="nav-link" active-class="active">
+    <span class="material-icons">groups</span><span>Turmas</span>
+  </router-link>
+  <router-link to="/unidades-curriculares" class="nav-link" active-class="active">
+    <span class="material-icons">book</span><span>UCs</span>
+  </router-link>
+</nav>
+
 
     <div class="bottom">
       <button @click="logout" class="logout-btn">

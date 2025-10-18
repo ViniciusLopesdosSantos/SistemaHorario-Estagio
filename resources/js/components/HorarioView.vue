@@ -1,3 +1,4 @@
+<!-- src/components/HorarioView.vue -->
 <template>
   <div class="pagina">
     <div class="titulo"><h1>Horários</h1></div>
@@ -59,6 +60,16 @@
             </div>
           </template>
         </template>
+
+        <div class="rodape">
+          <button
+            class="btn-salvar"
+            :disabled="desabilitaSalvar || salvandoFeito"
+            @click="finalizarHorario"
+          >
+            {{ salvandoFeito ? 'Salvando...' : 'SALVAR' }}
+          </button>
+        </div>
       </div>
 
       <div v-else class="selecione-turma-aviso">
@@ -76,10 +87,8 @@
         </div>
 
         <div v-if="sugestaoDeJuncao" class="sugestao-juncao">
-          <p>
-            Já existe uma aula de <strong>{{ sugestaoDeJuncao.uc_nome }}</strong> com
-            <strong>{{ sugestaoDeJuncao.professor?.nome }}</strong> neste horário.
-          </p>
+          <p>Já existe uma aula de <strong>{{ sugestaoDeJuncao.uc_nome }}</strong> com
+            <strong>{{ sugestaoDeJuncao.professor?.nome }}</strong> neste horário.</p>
           <p class="info-capacidade">
             Capacidade da sala: <strong>{{ sugestaoDeJuncao.sala?.capacidade }}</strong> |
             Total de alunos após junção: <strong>{{ totalAlunosAposJuncao }}</strong>
@@ -161,6 +170,7 @@ export default {
       turmaSelecionadaId: null,
       modalAberto: false, editando: false, form: {},
       sugestaoDeJuncao: null, totalAlunosAposJuncao: 0,
+      salvandoFeito: false,
       diasDaSemana: ['Segunda','Terça','Quarta','Quinta','Sexta'],
       blocosDeTempo: [
         { id: 1, label: '19h00 - 20h30', inicio: '19:00', fim: '20:30', gridRow: 2 },
@@ -175,27 +185,47 @@ export default {
     salasFiltradas() {
       if (!this.turmaAtual) return []
       const n = this.turmaAtual.quantidade_alunos || 0
-      return this.salas.filter(s => (s.capacidade || 0) >= n) // mantém s.id_sala
+      return this.salas.filter(s => (s.capacidade || 0) >= n)
     },
     ucSelecionada() { return this.ucs.find(u => u.id === this.form.uc_id) || null },
+    desabilitaSalvar() { return !this.turmaSelecionadaId || this.horariosDaTurma.length === 0 },
   },
-  async mounted() { await this.buscarDadosIniciais() },
+  async mounted() {
+    await this.buscarDadosIniciais()
+    this.aplicarTurmaDaRota()
+  },
+  watch: {
+    '$route.query.turma'() { this.aplicarTurmaDaRota() }
+  },
   methods: {
+    aplicarTurmaDaRota() {
+      const tid = Number(this.$route.query.turma)
+      if (!tid) return
+      if (this.turmas.some(t => t.id === tid)) this.turmaSelecionadaId = tid
+    },
+
     async buscarDadosIniciais() {
       try {
-        const [t,p,s,h,u] = await Promise.all([
+        const [t,p,s,h,u,feitos] = await Promise.all([
           axios.get('/api/turmas'),
           axios.get('/api/professores'),
           axios.get('/api/salas'),
           axios.get('/api/horarios'),
           axios.get('/api/unidades-curriculares'),
+          axios.get('/api/horarios-feitos'),
         ])
-        this.turmas=t.data; this.professores=p.data; this.salas=s.data; this.horarios=h.data; this.ucs=u.data
-      } catch { Swal.fire('Erro','Falha ao carregar dados iniciais.','error') }
+        const idsFeitos = new Set((feitos.data || []).map(x => x.id))
+        this.turmas = (t.data || []).filter(tt => !idsFeitos.has(tt.id))
+        this.professores=p.data; this.salas=s.data; this.horarios=h.data; this.ucs=u.data
+      } catch {
+        Swal.fire('Erro','Falha ao carregar dados iniciais.','error')
+      }
     },
+
     getHorarioNaCelula(dia, horaInicio) {
       return this.horariosDaTurma.find(h => h.dia_semana===dia && h.hora_inicio===horaInicio) || null
     },
+
     abrirModalCriacao(dia, horaInicio, horaFim) {
       this.editando=false; this.sugestaoDeJuncao=null; this.totalAlunosAposJuncao=0
       const existente = this.horarios.find(h => h.dia_semana===dia && h.hora_inicio===horaInicio && h.turma_id!==this.turmaSelecionadaId)
@@ -212,19 +242,23 @@ export default {
       }
       this.modalAberto=true
     },
+
     preencherComSugestao() {
       if (!this.sugestaoDeJuncao) return
       const s=this.sugestaoDeJuncao
       this.form.uc_id=s.uc_id||null; this.form.professor_id=s.professor_id; this.form.sala_id=s.sala_id; this.form.classroom_link=s.classroom_link
       this.sugestaoDeJuncao=null
     },
+
     abrirModalEdicao(h) {
       this.editando=true; this.sugestaoDeJuncao=null
       this.form={ id:h.id, turma_id:h.turma_id, dia_semana:h.dia_semana, hora_inicio:h.hora_inicio, hora_fim:h.hora_fim,
                   uc_id:h.uc_id||null, professor_id:h.professor_id, sala_id:h.sala_id, classroom_link:h.classroom_link||'' }
       this.modalAberto=true
     },
+
     fecharModal(){ this.modalAberto=false; this.form={}; this.sugestaoDeJuncao=null },
+
     async salvarHorario() {
       try {
         const payload={...this.form}
@@ -244,12 +278,39 @@ export default {
         }
       }
     },
+
     async deletarHorario(id){
       const ok=await Swal.fire({title:'Excluir?',text:'Esta ação não pode ser desfeita.',icon:'warning',showCancelButton:true,
         confirmButtonColor:'#FF6F00',cancelButtonColor:'#505050',confirmButtonText:'Sim, excluir',cancelButtonText:'Cancelar'})
       if(!ok.isConfirmed) return
       try{ await axios.delete(`/api/horarios/${id}`); this.horarios=this.horarios.filter(h=>h.id!==id); Swal.fire('Excluído','Horário removido.','success')}
       catch{ Swal.fire('Erro','Não foi possível excluir.','error')}
+    },
+
+    async finalizarHorario(){
+      if (this.desabilitaSalvar) return
+      const ok = await Swal.fire({
+        title:'Finalizar horário?',
+        text:'Ele irá para “Horários Feitos”.',
+        icon:'question', showCancelButton:true,
+        confirmButtonColor:'#FF6F00', cancelButtonColor:'#505050',
+        confirmButtonText:'Salvar', cancelButtonText:'Cancelar'
+      })
+      if(!ok.isConfirmed) return
+
+      this.salvandoFeito = true
+      try{
+        await axios.post(`/api/turmas/${this.turmaSelecionadaId}/horario/finalizar`)
+        this.turmas = this.turmas.filter(t => t.id !== this.turmaSelecionadaId)
+        this.turmaSelecionadaId = null
+        Swal.fire('Salvo','Horário finalizado.','success')
+        this.$router.push({ name:'horarios-feitos' })
+      }catch(e){
+        const msg = e.response?.data?.errors?.turma_id?.[0] || e.response?.data?.message || 'Falha ao salvar.'
+        Swal.fire('Erro', msg, 'error')
+      }finally{
+        this.salvandoFeito = false
+      }
     }
   }
 }
@@ -264,7 +325,7 @@ export default {
 .seletor-turma .material-icons{font-size:2rem}
 .select-turma{width:100%;background:none;border:none;color:white;font-size:1.2rem;font-weight:bold;outline:none;cursor:pointer}
 .select-turma option{background:#333}
-.grade-container{display:grid;grid-template-columns:120px repeat(5,1fr);grid-template-rows:auto 1fr 50px 1fr;gap:8px}
+.grade-container{display:grid;grid-template-columns:120px repeat(5,1fr);grid-template-rows:auto 1fr 50px 1fr auto;gap:8px}
 .dia-coluna{grid-row:1;background:#3a3a3a;padding:1rem;text-align:center;font-weight:bold;border-radius:8px;display:flex;align-items:center;justify-content:center}
 .bloco-tempo{grid-column:1;display:flex;align-items:center;justify-content:center;padding:1rem;font-weight:bold;text-align:center;color:#ddd}
 .celula-horario{background:#e0e0e0;border-radius:8px;min-height:160px;padding:1rem;display:flex;flex-direction:column;justify-content:center;align-items:center;color:#333}
@@ -291,6 +352,9 @@ export default {
 .botoes-modal{display:flex;justify-content:flex-end;gap:10px;margin-top:2rem}
 .cancelar-btn{background:#333;color:white;padding:10px 20px;border:none;border-radius:10px;cursor:pointer;font-weight:bold}
 .btn-cadastrar{padding:10px 20px;background:#FF6F00;color:white;border:none;border-radius:10px;font-weight:bold;cursor:pointer}
+.rodape{grid-column:1 / -1; display:flex; justify-content:flex-end; margin-top:12px}
+.btn-salvar{background:#000;border:none;color:#fff;font-weight:700;padding:10px 22px;border-radius:10px;cursor:pointer}
+.btn-salvar[disabled]{opacity:.6;cursor:not-allowed}
 .sugestao-juncao{background:#404040;border-left:4px solid #FF6F00;padding:1rem;margin-bottom:1.5rem;border-radius:8px;display:flex;flex-direction:column;gap:.75rem}
 .sugestao-juncao p{margin:0;color:#eee}.info-capacidade{font-size:.9rem;color:#ccc}
 .btn-juntar{background:#FF6F00;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:bold;display:flex;align-items:center;gap:8px;align-self:flex-start}

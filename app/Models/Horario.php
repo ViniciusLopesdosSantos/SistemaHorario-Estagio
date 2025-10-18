@@ -23,13 +23,9 @@ class Horario extends Model
         'classroom_link',
     ];
 
-    protected $casts = [
-        'hora_inicio' => 'datetime:H:i',
-        'hora_fim'    => 'datetime:H:i',
-    ];
-
+  
     public function turma()     { return $this->belongsTo(Turma::class, 'turma_id'); }
     public function professor() { return $this->belongsTo(Professor::class, 'professor_id'); }
-    public function sala()      { return $this->belongsTo(Sala::class, 'sala_id'); }    // salas.id_sala referenciada na FK da migration
+    public function sala()      { return $this->belongsTo(Sala::class, 'sala_id'); }  // Relacionamento correto com a chave estrangeira 'sala_id'
     public function uc()        { return $this->belongsTo(UnidadeCurricular::class, 'uc_id'); }
 }
