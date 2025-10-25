@@ -29,3 +29,4 @@ class Horario extends Model
     public function sala()      { return $this->belongsTo(Sala::class, 'sala_id'); }  // Relacionamento correto com a chave estrangeira 'sala_id'
     public function uc()        { return $this->belongsTo(UnidadeCurricular::class, 'uc_id'); }
 }
+

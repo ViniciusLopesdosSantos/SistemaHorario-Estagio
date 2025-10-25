@@ -63,6 +63,21 @@
           </template>
         </div>
       </section>
+      
+      <!-- Seção de Atividades Digitais -->
+      <section v-if="atividadesDigitais.length > 0" class="atividades-digitais-container">
+        <div class="atividades-digitais-titulo">
+          ATIVIDADES DIGITAIS*
+        </div>
+        <div class="atividades-digitais-lista">
+          <div v-for="ativ in atividadesDigitais" :key="ativ.codigo_uc" class="atividade-item">
+            <span class="atividade-codigo">{{ ativ.codigo_uc }}</span>
+            -
+            <span class="atividade-nome">{{ ativ.nome_uc }}</span>
+          </div>
+        </div>
+      </section>
+      <!-- FIM NOVO -->
 
       <div v-else class="placeholder">Pesquise e selecione uma turma publicada.</div>
     </div>
@@ -83,6 +98,7 @@ export default {
       termo: "",
       turma: null,
       horarios: [],
+      atividadesDigitais: [], // Adicionado para armazenar as atividades digitais
       dias: ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"],
       blocos: [
         { id: 1, label: "19h00 - 20h30", inicio: "19:00", fim: "20:30" },
@@ -93,7 +109,8 @@ export default {
   },
   computed: {
     gradePronta() {
-      return this.turma && this.horarios.length > 0;
+      // Modificado para considerar grade pronta mesmo sem horários, se houver atividades digitais
+      return this.turma && (this.horarios.length > 0 || this.atividadesDigitais.length > 0);
     },
   },
   mounted() {
@@ -123,6 +140,7 @@ export default {
         const { data } = await axios.get(`/api/public/horarios/${t.id}`);
         this.turma = data.turma;
         this.horarios = data.horarios;
+        this.atividadesDigitais = data.atividades_digitais || []; // Captura as atividades digitais
       } catch (e) {
         Swal.fire(
           "Erro",
@@ -159,7 +177,7 @@ export default {
             "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
           s.onload = ok;
           s.onerror = err;
-          document.head.appendChild(s);
+          document.head.appendChild(s );
         }).catch(() => {});
       }
       if (!window.html2canvas) {
@@ -183,7 +201,7 @@ export default {
 </script>
 
 <style scoped>
-@import url("https://fonts.googleapis.com/icon?family=Material+Icons");
+@import url("https://fonts.googleapis.com/icon?family=Material+Icons" );
 
 .wrap {
   min-height: 100vh;
@@ -373,4 +391,40 @@ export default {
     grid-template-columns: 90px repeat(5, 1fr);
   }
 }
+
+/* NOVOS ESTILOS PARA ATIVIDADES DIGITAIS */
+.atividades-digitais-container {
+  margin-top: 20px;
+  padding: 16px;
+  background: #fff; /* Fundo branco para contrastar com o laranja/cinza */
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.atividades-digitais-titulo {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ff6528; /* Cor laranja para destaque */
+  border-left: 4px solid #ff6528;
+  padding-left: 8px;
+  margin-bottom: 10px;
+}
+
+.atividades-digitais-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 12px;
+}
+
+.atividade-item {
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.atividade-codigo {
+  font-weight: 700;
+  color: #000;
+}
+/* FIM NOVOS ESTILOS */
 </style>
