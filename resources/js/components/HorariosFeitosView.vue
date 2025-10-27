@@ -146,7 +146,7 @@ export default {
 
 .caixa-cinza {
   position: relative;
-  background: #808080;
+  background: #444;
   border-radius: 18px;
   width: 90%;
   max-width: 1200px;

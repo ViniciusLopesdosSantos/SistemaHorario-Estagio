@@ -56,41 +56,41 @@
       </table>
     </div>
 
-    <!-- Modal (cadastro/edição) - opcional, já preparado -->
-    <div v-if="modalAberto" class="modal-overlay">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h2>{{ editando ? 'Editar Turma' : 'Nova Turma' }}</h2>
-          <button @click="fecharModal" class="fechar-btn">
-            <span class="material-icons">close</span>
+      <!-- Modal (cadastro/edição) -->
+  <div v-if="modalAberto" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>{{ editando ? 'Editar Turma' : 'Nova Turma' }}</h2>
+        <button @click="fecharModal" class="fechar-btn">
+          <span class="material-icons">close</span>
+        </button>
+      </div>
+      
+      <form @submit.prevent="editando ? atualizarTurma() : criarTurma()">
+        <div class="form-group">
+          <label>Turma</label>
+          <input v-model="form.nome" type="text" required />
+        </div>
+        
+        <div class="form-group">
+          <label>Representante {{ isFormFlex ? '(Opcional para FLEX)' : '' }}</label>
+          <input v-model="form.representante" type="text" :required="!isFormFlex" />
+        </div>
+        
+        <div class="form-group">
+          <label>Quantidade Alunos {{ isFormFlex ? '(Opcional para FLEX)' : '' }}</label>
+          <input v-model.number="form.quantidade_alunos" type="number" min="0" :required="!isFormFlex" />
+        </div>
+        
+        <div class="botoes-modal">
+          <button type="button" @click="fecharModal" class="cancelar-btn">Cancelar</button>
+          <button type="submit" class="btn-cadastrar">
+            {{ editando ? 'Atualizar' : 'Cadastrar' }}
           </button>
         </div>
-
-        <form @submit.prevent="editando ? atualizarTurma() : criarTurma()">
-          <div class="form-group">
-            <label>Turma</label>
-            <input v-model="form.nome" type="text" required />
-          </div>
-
-          <div class="form-group">
-            <label>Representante</label>
-            <input v-model="form.representante" type="text" required />
-          </div>
-
-          <div class="form-group">
-            <label>Quantidade Alunos</label>
-            <input v-model.number="form.quantidade_alunos" type="number" min="1" required />
-          </div>
-
-          <div class="botoes-modal">
-            <button type="button" @click="fecharModal" class="cancelar-btn">Cancelar</button>
-            <button type="submit" class="btn-cadastrar">
-              {{ editando ? 'Atualizar' : 'Cadastrar' }}
-            </button>
-          </div>
-        </form>
-      </div>
+      </form>
     </div>
+  </div>
   </div>
 </template>
 
@@ -106,7 +106,6 @@ export default {
       turmas: [],
       turmasFiltradas: [],
       termoPesquisa: '',
-
       modalAberto: false,
       editando: false,
       turmaEditandoId: null,
@@ -117,11 +116,25 @@ export default {
       }
     }
   },
+  
+  computed: {
+    turmasFiltradas() {
+      const n = s => (s ?? '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const termo = n(this.termoPesquisa);
+      return this.turmas.filter(t => n(t.nome).includes(termo) || n(t.representante).includes(termo));
+    },
+    
+    isFormFlex() {
+      const nome = (this.form.nome || '').trim().toLowerCase();
+      return nome === 'flex';
+    }
+  },
+  
   mounted() {
     this.buscarTurmas()
   },
+  
   methods: {
-    // === BUSCA E FILTRO (igual às outras telas) ===
     async buscarTurmas() {
       try {
         const { data } = await axios.get('/api/turmas')
@@ -131,6 +144,7 @@ export default {
         console.error('Erro ao buscar turmas:', e)
       }
     },
+
     normalizar(texto) {
       return (texto ?? '')
         .toString()
@@ -138,6 +152,7 @@ export default {
         .replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
     },
+
     aplicarFiltro: _.debounce(function () {
       const termo = this.normalizar(this.termoPesquisa)
       this.turmasFiltradas = this.turmas.filter(t =>
@@ -147,12 +162,12 @@ export default {
       )
     }, 300),
 
-    // === CRUD básico (opcional) ===
     abrirModalCriar() {
       this.form = { nome: '', representante: '', quantidade_alunos: '' }
       this.editando = false
       this.modalAberto = true
     },
+
     abrirModalEditar(t) {
       this.form = {
         nome: t.nome,
@@ -163,6 +178,7 @@ export default {
       this.editando = true
       this.modalAberto = true
     },
+
     fecharModal() { this.modalAberto = false },
 
     async criarTurma() {
@@ -175,7 +191,7 @@ export default {
       } catch (error) {
         const errs = error.response?.data?.errors
         const msg = errs ? Object.values(errs).flat()[0]
-                         : (error.response?.data?.message || 'Erro ao cadastrar turma.')
+          : (error.response?.data?.message || 'Erro ao cadastrar turma.')
         Swal.fire('Erro!', msg, 'error')
       }
     },
@@ -191,7 +207,7 @@ export default {
       } catch (error) {
         const errs = error.response?.data?.errors
         const msg = errs ? Object.values(errs).flat()[0]
-                         : (error.response?.data?.message || 'Erro ao atualizar turma.')
+          : (error.response?.data?.message || 'Erro ao atualizar turma.')
         Swal.fire('Erro!', msg, 'error')
       }
     },
@@ -207,7 +223,9 @@ export default {
         confirmButtonText: 'Sim, excluir!',
         cancelButtonText: 'Cancelar'
       })
+
       if (!ok.isConfirmed) return
+
       try {
         await axios.delete(`/api/turmas/${id}`)
         this.turmas = this.turmas.filter(t => t.id !== id)

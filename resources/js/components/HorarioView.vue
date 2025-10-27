@@ -41,8 +41,35 @@
             <div v-for="dia in diasDaSemana" :key="dia + bloco.id" class="celula-horario"
                  :style="{ 'grid-column': diasDaSemana.indexOf(dia) + 2, 'grid-row': bloco.gridRow }">
               
-              <!-- Card de aula existente -->
-              <div v-if="getHorarioNaCelula(dia, bloco.inicio)" class="uc-card">
+              <!-- TURMA FLEX: Múltiplas aulas -->
+              <div v-if="isTurmaFlex && getHorariosNaCelula(dia, bloco.inicio).length > 0" class="celula-flex">
+                <div v-for="(horario, index) in getHorariosNaCelula(dia, bloco.inicio)" 
+                     :key="horario.id" 
+                     class="uc-card uc-card-flex"
+                     :class="{ 'mt-2': index > 0 }">
+                  <p class="uc-nome">{{ horario.uc_nome }}</p>
+                  <p class="uc-info"><strong>Grupo:</strong> {{ horario.uc_grupo }}</p>
+                  <p class="uc-info"><strong>Código:</strong> {{ horario.uc_codigo }}</p>
+                  <p class="uc-info">{{ horario.professor?.nome }}</p>
+                  <p class="uc-info"><strong>Sala:</strong> {{ horario.sala?.nome }}</p>
+                  <p v-if="horario.classroom_link" class="uc-info">
+                    <strong>Classroom:</strong>
+                    <a :href="horario.classroom_link" target="_blank" class="classroom-link">Acessar</a>
+                  </p>
+                  <div class="uc-actions">
+                    <button @click="abrirModalEdicao(horario)" class="icon-btn-uc" title="Editar">✏️</button>
+                    <button @click="deletarHorario(horario.id)" class="icon-btn-uc" title="Excluir">🗑️</button>
+                  </div>
+                </div>
+                <!-- Botão adicionar mais aulas no FLEX -->
+                <div class="incluir-uc incluir-uc-flex" @click="abrirModalCriacao(dia, bloco.inicio, bloco.fim)">
+                  <span class="material-icons">add</span>
+                  <span>Adicionar UC</span>
+                </div>
+              </div>
+
+              <!-- TURMA NORMAL: Uma aula -->
+              <div v-else-if="!isTurmaFlex && getHorarioNaCelula(dia, bloco.inicio)" class="uc-card">
                 <p class="uc-nome">{{ getHorarioNaCelula(dia, bloco.inicio).uc_nome }}</p>
                 <p class="uc-info"><strong>Grupo:</strong> {{ getHorarioNaCelula(dia, bloco.inicio).uc_grupo }}</p>
                 <p class="uc-info"><strong>Código:</strong> {{ getHorarioNaCelula(dia, bloco.inicio).uc_codigo }}</p>
@@ -61,8 +88,8 @@
                 </div>
               </div>
 
-              <!-- Botão incluir aula -->
-              <div  class="incluir-uc" @click="abrirModalCriacao(dia, bloco.inicio, bloco.fim)">
+              <!-- Botão incluir aula (quando vazio) -->
+              <div v-else class="incluir-uc" @click="abrirModalCriacao(dia, bloco.inicio, bloco.fim)">
                 <span class="material-icons">add_circle</span>
                 <span>Incluir UC</span>
               </div>
@@ -113,8 +140,8 @@
           </button>
         </div>
 
-        <!-- Sugestão de Junção -->
-        <div v-if="sugestaoDeJuncao" class="sugestao-juncao">
+        <!-- Sugestão de Junção (apenas para turmas normais) -->
+        <div v-if="sugestaoDeJuncao && !isTurmaFlex" class="sugestao-juncao">
           <p>Já existe uma aula de <strong>{{ sugestaoDeJuncao.uc_nome }}</strong> com
           <strong>{{ sugestaoDeJuncao.professor?.nome }}</strong> neste horário.</p>
           <p class="info-capacidade">
@@ -270,6 +297,11 @@ export default {
     turmaAtual() {
       return this.turmas.find(t => t.id === this.turmaSelecionadaId) || null
     },
+
+    isTurmaFlex() {
+      const nomeTurma = (this.turmaAtual?.nome || '').toLowerCase()
+      return nomeTurma === 'flex'
+    },
     
     salasFiltradas() {
       if (!this.turmaAtual) return []
@@ -298,7 +330,6 @@ export default {
     
     async turmaSelecionadaId(novoId, antigoId) {
       if (novoId && novoId !== antigoId) {
-        console.log('🔄 Turma selecionada:', novoId)
         await this.carregarHorariosDaTurma(novoId)
         await this.carregarAtividadesDigitais(novoId)
       } else if (!novoId) {
@@ -319,8 +350,6 @@ export default {
 
     async buscarDadosIniciais() {
       try {
-        console.log('📦 Carregando dados iniciais...')
-        
         const [t, p, s, h, u, feitos] = await Promise.all([
           axios.get('/api/turmas'),
           axios.get('/api/professores'),
@@ -330,120 +359,120 @@ export default {
           axios.get('/api/horarios-feitos'),
         ])
         
-        console.log('✅ Dados recebidos:', {
-          turmas: t.data.length,
-          professores: p.data.length,
-          salas: s.data.length,
-          horarios: h.data.length,
-          ucs: u.data.length,
-          feitos: feitos.data.length
-        })
-        
         const idsFeitos = new Set((feitos.data || []).map(x => x.id))
         this.turmas = (t.data || []).filter(tt => !idsFeitos.has(tt.id))
         this.professores = p.data || []
         this.salas = s.data || []
         this.horarios = h.data || []
         this.ucs = u.data || []
-        
-        console.log('✅ Horários no array:', this.horarios.length)
       } catch (error) {
-        console.error('❌ ERRO ao carregar dados:', error)
         Swal.fire('Erro', 'Falha ao carregar dados iniciais.', 'error')
       }
     },
 
     async carregarHorariosDaTurma(turmaId) {
       try {
-        console.log('📥 Carregando horários da turma:', turmaId)
         const response = await axios.get(`/api/horarios/turma/${turmaId}`)
         const horariosNovos = response.data || []
-        
-        console.log('✅ Horários recebidos:', horariosNovos.length)
-        console.log('📋 Dados:', horariosNovos)
         
         // Remove horários antigos da turma
         this.horarios = this.horarios.filter(h => h.turma_id !== turmaId)
         
         // Adiciona os novos horários
         this.horarios.push(...horariosNovos)
-        
-        console.log('✅ Total de horários no array:', this.horarios.length)
-        console.log('✅ Horários da turma atual:', this.horariosDaTurma.length)
       } catch (error) {
-        console.error('❌ Erro ao carregar horários da turma:', error)
-        Swal.fire('Erro', 'Não foi possível carregar os horários da turma.', 'error')
+        console.error('Erro ao carregar horários da turma:', error)
       }
     },
 
     async carregarAtividadesDigitais(turmaId) {
       try {
-        console.log('📥 Carregando atividades digitais da turma:', turmaId)
         const response = await axios.get(`/api/horarios/atividades-digitais/${turmaId}`)
         this.atividadesDigitais = response.data || []
-        console.log('✅ Atividades digitais carregadas:', this.atividadesDigitais.length)
       } catch (error) {
-        console.error('❌ Erro ao carregar atividades digitais:', error)
         this.atividadesDigitais = []
       }
     },
 
     // ========== GRID DE HORÁRIOS ==========
+    
+    // Para turmas NORMAIS: retorna UM horário
     getHorarioNaCelula(dia, horaInicio) {
-      // Normaliza hora para comparação (remove segundos se existir)
-      const horaNormalizada = horaInicio.substring(0, 5) // "19:00:00" -> "19:00"
+      const horaNormalizada = horaInicio.substring(0, 5)
       
       return this.horariosDaTurma.find(h => {
-        const horaHorario = h.hora_inicio.substring(0, 5) // Normaliza também
+        const horaHorario = h.hora_inicio.substring(0, 5)
         return h.dia_semana === dia && horaHorario === horaNormalizada
       }) || null
     },
 
-    // ========== MODAL DE HORÁRIOS ==========
-    abrirModalCriacao(dia, horaInicio, horaFim) {
-      this.editando = false
-      this.sugestaoDeJuncao = null
-      this.totalAlunosAposJuncao = 0
+    // Para turmas FLEX: retorna ARRAY de horários
+    getHorariosNaCelula(dia, horaInicio) {
+      const horaNormalizada = horaInicio.substring(0, 5)
+      
+      return this.horariosDaTurma.filter(h => {
+        const horaHorario = h.hora_inicio.substring(0, 5)
+        return h.dia_semana === dia && horaHorario === horaNormalizada
+      })
+    },
 
-      const existente = this.horarios.find(h => 
-        h.dia_semana === dia && 
-        h.hora_inicio === horaInicio && 
+    // ========== MODAL DE HORÁRIOS ==========
+      abrirModalCriacao(dia, horaInicio, horaFim) {
+    this.editando = false;
+    this.sugestaoDeJuncao = null;
+    this.totalAlunosAposJuncao = 0;
+
+    // Apenas para turmas normais: verificar sugestão de junção
+    if (!this.isTurmaFlex) {
+      const existente = this.horarios.find(h =>
+        h.dia_semana === dia &&
+        h.hora_inicio.substring(0, 5) === horaInicio &&
         h.turma_id !== this.turmaSelecionadaId
-      )
+      );
 
       if (existente && this.turmaAtual) {
-        const naMesmaSalaESlot = this.horarios.filter(h => 
-          h.sala_id === existente.sala_id && 
-          h.dia_semana === dia && 
-          h.hora_inicio === horaInicio
-        )
+        // Busca a turma da aula existente
+        const turmaExistente = this.turmas.find(t => t.id === existente.turma_id);
         
-        const turmasIds = naMesmaSalaESlot.map(h => h.turma_id)
-        const alunosJaNaSala = this.turmas
-          .filter(t => turmasIds.includes(t.id))
-          .reduce((a, t) => a + (t.quantidade_alunos || 0), 0)
+        // NÃO mostrar sugestão se a aula existente for da turma FLEX
+        const turmaExistenteIsFlex = turmaExistente && 
+          ['flex'].includes(turmaExistente.nome.toLowerCase());
         
-        const totalApos = alunosJaNaSala + (this.turmaAtual.quantidade_alunos || 0)
-        
-        if ((existente.sala?.capacidade || 0) >= totalApos) {
-          this.sugestaoDeJuncao = existente
-          this.totalAlunosAposJuncao = totalApos
+        if (!turmaExistenteIsFlex) {
+          const naMesmaSalaESlot = this.horarios.filter(h =>
+            h.sala_id === existente.sala_id &&
+            h.dia_semana === dia &&
+            h.hora_inicio.substring(0, 5) === horaInicio
+          );
+
+          const turmasIds = naMesmaSalaESlot.map(h => h.turma_id);
+          const alunosJaNaSala = this.turmas
+            .filter(t => turmasIds.includes(t.id))
+            .reduce((a, t) => a + (t.quantidade_alunos || 0), 0);
+
+          const totalApos = alunosJaNaSala + (this.turmaAtual.quantidade_alunos || 0);
+
+          if ((existente.sala?.capacidade || 0) >= totalApos) {
+            this.sugestaoDeJuncao = existente;
+            this.totalAlunosAposJuncao = totalApos;
+          }
         }
       }
+    }
 
-      this.form = {
-        turma_id: this.turmaSelecionadaId,
-        dia_semana: dia,
-        hora_inicio: horaInicio,
-        hora_fim: horaFim,
-        uc_id: null,
-        professor_id: null,
-        sala_id: null,
-        classroom_link: ''
-      }
-      
-      this.modalAberto = true
-    },
+    this.form = {
+      turma_id: this.turmaSelecionadaId,
+      dia_semana: dia,
+      hora_inicio: horaInicio,
+      hora_fim: horaFim,
+      uc_id: null,
+      professor_id: null,
+      sala_id: null,
+      classroom_link: ''
+    };
+
+    this.modalAberto = true;
+  },
 
     preencherComSugestao() {
       if (!this.sugestaoDeJuncao) return
@@ -457,7 +486,6 @@ export default {
     },
 
     abrirModalEdicao(h) {
-      console.log('✏️ Editando horário:', h)
       this.editando = true
       this.sugestaoDeJuncao = null
       
@@ -484,16 +512,12 @@ export default {
 
     async salvarHorario() {
       try {
-        console.log('💾 Salvando horário:', this.form)
-        
         const payload = { ...this.form }
         const resp = this.editando
           ? await axios.put(`/api/horarios/${payload.id}`, payload)
           : await axios.post('/api/horarios', payload)
         
         const novo = resp.data
-        console.log('✅ Horário salvo:', novo)
-        
         const i = this.horarios.findIndex(h => h.id === novo.id)
         
         if (i >= 0) {
@@ -502,12 +526,9 @@ export default {
           this.horarios.push(novo)
         }
         
-        console.log('✅ Total de horários após salvar:', this.horarios.length)
-        
         Swal.fire('Sucesso', `Horário ${this.editando ? 'atualizado' : 'cadastrado'}.`, 'success')
         this.fecharModal()
       } catch (e) {
-        console.error('❌ Erro ao salvar horário:', e)
         if (e.response?.status === 422) {
           const errors = e.response.data.errors || {}
           const first = Object.values(errors).flat()[0] || 'Erro de validação.'
@@ -533,13 +554,10 @@ export default {
       if (!ok.isConfirmed) return
       
       try {
-        console.log('🗑️ Excluindo horário:', id)
         await axios.delete(`/api/horarios/${id}`)
         this.horarios = this.horarios.filter(h => h.id !== id)
-        console.log('✅ Horário excluído. Total restante:', this.horarios.length)
         Swal.fire('Excluído', 'Horário removido.', 'success')
       } catch (error) {
-        console.error('❌ Erro ao excluir:', error)
         Swal.fire('Erro', 'Não foi possível excluir.', 'error')
       }
     },
@@ -563,14 +581,12 @@ export default {
       this.salvandoFeito = true
       
       try {
-        console.log('💾 Finalizando horário da turma:', this.turmaSelecionadaId)
         await axios.post(`/api/turmas/${this.turmaSelecionadaId}/horario/finalizar`)
         this.turmas = this.turmas.filter(t => t.id !== this.turmaSelecionadaId)
         this.turmaSelecionadaId = null
         Swal.fire('Salvo', 'Horário finalizado.', 'success')
         this.$router.push({ name: 'horarios-feitos' })
       } catch (e) {
-        console.error('❌ Erro ao finalizar:', e)
         const msg = e.response?.data?.errors?.turma_id?.[0] || 
                     e.response?.data?.message || 
                     'Falha ao salvar.'
@@ -602,13 +618,11 @@ export default {
 
     async cadastrarAtividadeDigital() {
       try {
-        console.log('💾 Cadastrando atividade digital:', this.formAtividadeDigital)
         await axios.post('/api/horarios/atividade-digital', this.formAtividadeDigital)
         Swal.fire('Sucesso', 'Atividade Digital cadastrada com sucesso!', 'success')
         await this.carregarAtividadesDigitais(this.turmaSelecionadaId)
         this.fecharModalAtividadeDigital()
       } catch (e) {
-        console.error('❌ Erro ao cadastrar atividade digital:', e)
         const msg = e.response?.data?.message || 'Falha ao cadastrar atividade digital.'
         Swal.fire('Erro', msg, 'error')
       }
@@ -629,12 +643,10 @@ export default {
       if (!ok.isConfirmed) return
 
       try {
-        console.log('🗑️ Excluindo atividade digital:', id)
         await axios.delete(`/api/horarios/atividade-digital/${id}`)
         this.atividadesDigitais = this.atividadesDigitais.filter(a => a.id !== id)
         Swal.fire('Excluído', 'Atividade digital removida.', 'success')
       } catch (error) {
-        console.error('❌ Erro ao excluir atividade:', error)
         Swal.fire('Erro', 'Não foi possível excluir.', 'error')
       }
     }
@@ -645,7 +657,6 @@ export default {
 <style scoped>
 @import url('https://fonts.googleapis.com/icon?family=Material+Icons');
 
-/* Layout principal */
 .pagina {
   background: #FF6528;
   min-height: 100vh;
@@ -671,7 +682,6 @@ export default {
   color: white;
 }
 
-/* Seletor de turma */
 .seletor-turma {
   display: flex;
   align-items: center;
@@ -703,7 +713,6 @@ export default {
   background: #333;
 }
 
-/* Grade de horários */
 .grade-container {
   display: grid;
   grid-template-columns: 120px repeat(5, 1fr);
@@ -758,14 +767,35 @@ export default {
   border: 1px dashed #666;
 }
 
-/* Card de UC */
-.uc-card {
+/* Célula FLEX - Múltiplas aulas */
+.celula-flex {
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+.uc-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
   text-align: left;
   font-size: 0.9rem;
+  background: #f5f5f5;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+.uc-card-flex {
+  border-left: 3px solid #4CAF50;
+  background: #f0f7f0;
+}
+
+.mt-2 {
+  margin-top: 0.5rem;
 }
 
 .uc-nome {
@@ -823,6 +853,7 @@ export default {
   align-items: center;
   gap: 0.5rem;
   transition: color 0.2s;
+  padding: 10px;
 }
 
 .incluir-uc:hover {
@@ -833,7 +864,23 @@ export default {
   font-size: 2.5rem;
 }
 
-/* Aviso de seleção */
+/* Botão incluir UC FLEX - menor */
+.incluir-uc-flex {
+  background: #e8f5e9;
+  border: 2px dashed #4CAF50;
+  border-radius: 6px;
+  padding: 8px;
+  margin-top: 4px;
+}
+
+.incluir-uc-flex .material-icons {
+  font-size: 1.5rem;
+}
+
+.incluir-uc-flex span:not(.material-icons) {
+  font-size: 0.85rem;
+}
+
 .selecione-turma-aviso {
   text-align: center;
   padding: 4rem;
@@ -887,7 +934,6 @@ export default {
   cursor: pointer;
 }
 
-/* Formulário */
 .form-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -962,7 +1008,6 @@ export default {
   background: #FF8533;
 }
 
-/* Rodapé */
 .rodape {
   grid-column: 1 / -1;
   display: flex;
@@ -985,7 +1030,6 @@ export default {
   cursor: not-allowed;
 }
 
-/* Sugestão de junção */
 .sugestao-juncao {
   background: #404040;
   border-left: 4px solid #FF6F00;
@@ -1025,7 +1069,6 @@ export default {
   filter: brightness(1.1);
 }
 
-/* Botão Atividades Digitais */
 .btn-atividades-digitais-container {
   grid-column: 1 / -1;
   display: flex;
@@ -1063,7 +1106,6 @@ export default {
   font-size: 1.5rem;
 }
 
-/* Modal Atividade Digital */
 .modal-atividade-digital {
   max-width: 500px;
 }
@@ -1076,7 +1118,6 @@ export default {
   justify-content: center;
 }
 
-/* Lista de Atividades Digitais */
 .lista-atividades-digitais {
   grid-column: 1 / -1;
   margin-top: 20px;
@@ -1130,7 +1171,6 @@ export default {
   background: rgba(255, 0, 0, 0.1);
 }
 
-/* Responsividade */
 @media (max-width: 1200px) {
   .grade-container {
     grid-template-columns: 100px repeat(5, 1fr);

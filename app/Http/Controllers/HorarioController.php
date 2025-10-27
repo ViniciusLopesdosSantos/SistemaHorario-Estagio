@@ -28,7 +28,7 @@ class HorarioController extends Controller
         return response()->json($horarios);
     }
 
-    // Lista horários por turma - CORRIGIDO
+    // Lista horários por turma
     public function horariosPorTurma($turmaId)
     {
         $horarios = Horario::with(['turma', 'professor', 'sala', 'uc'])
@@ -46,12 +46,14 @@ class HorarioController extends Controller
     // Método auxiliar para formatar horário
     private function formatarHorario($h)
     {
-        // Preenche campos legados se necessário
         if ($h->uc) {
             $h->uc_nome = $h->uc_nome ?: ($h->uc->uc ?? null);
             $h->uc_codigo = $h->uc_codigo ?: ($h->uc->codigo_uc ?? null);
             $h->uc_grupo = $h->uc_grupo ?: ($h->uc->grupo ?? null);
         }
+        
+        $horaInicio = substr($h->hora_inicio, 0, 5);
+        $horaFim = substr($h->hora_fim, 0, 5);
         
         return [
             'id' => $h->id,
@@ -63,8 +65,8 @@ class HorarioController extends Controller
             'uc_grupo' => $h->uc_grupo,
             'uc_codigo' => $h->uc_codigo,
             'dia_semana' => $h->dia_semana,
-            'hora_inicio' => $h->hora_inicio,
-            'hora_fim' => $h->hora_fim,
+            'hora_inicio' => $horaInicio,
+            'hora_fim' => $horaFim,
             'classroom_link' => $h->classroom_link,
             'professor' => $h->professor ? [
                 'id' => $h->professor->id,
@@ -85,7 +87,7 @@ class HorarioController extends Controller
         ];
     }
 
-    // Validação completa
+    // Validação completa com regras FLEX
     private function validateHorario(Request $request, $horarioId = null): array
     {
         $validated = $request->validate([
@@ -109,40 +111,80 @@ class HorarioController extends Controller
         $validated['uc_codigo'] = $uc->codigo_uc ?? null;
         $validated['uc_grupo'] = $uc->grupo ?? null;
 
-        // Conflitos na mesma sala
-        $horariosNaMesmaSala = Horario::where('sala_id', $validated['sala_id'])
-            ->where('dia_semana', $validated['dia_semana'])
-            ->where('hora_inicio', '<', $validated['hora_fim'])
-            ->where('hora_fim', '>', $validated['hora_inicio'])
-            ->when($horarioId, fn($q) => $q->where('id', '!=', $horarioId))
-            ->get();
+        // Verifica se é turma FLEX
+        $isFlex = in_array(strtolower($turma->nome), ['flex']);
 
-        // Capacidade da sala
-        $alunosJaNaSala = Turma::whereIn('id', $horariosNaMesmaSala->pluck('turma_id'))
-            ->sum('quantidade_alunos');
-        $totalProposto = (int)$alunosJaNaSala + (int)($turma->quantidade_alunos ?? 0);
+        // ========== VALIDAÇÕES ESPECÍFICAS PARA TURMA FLEX ==========
+        if ($isFlex) {
+            // 1. NÃO PODE TER A MESMA UC NO MESMO HORÁRIO
+            $ucJaExiste = Horario::where('turma_id', $validated['turma_id'])
+                ->where('uc_id', $validated['uc_id'])
+                ->where('dia_semana', $validated['dia_semana'])
+                ->where('hora_inicio', $validated['hora_inicio'])
+                ->when($horarioId, fn($q) => $q->where('id', '!=', $horarioId))
+                ->exists();
 
-        if ($sala->capacidade !== null && $totalProposto > (int)$sala->capacidade) {
-            throw ValidationException::withMessages([
-                'sala_id' => "Capacidade da sala ({$sala->capacidade}) seria excedida com {$totalProposto} alunos."
-            ]);
+            if ($ucJaExiste) {
+                throw ValidationException::withMessages([
+                    'uc_id' => 'Esta UC já está cadastrada neste horário para a turma FLEX.'
+                ]);
+            }
+
+            // 2. NÃO PODE USAR A MESMA SALA NO MESMO HORÁRIO (mesmo que tenha capacidade)
+            $salaOcupada = Horario::where('turma_id', $validated['turma_id'])
+                ->where('sala_id', $validated['sala_id'])
+                ->where('dia_semana', $validated['dia_semana'])
+                ->where('hora_inicio', '<', $validated['hora_fim'])
+                ->where('hora_fim', '>', $validated['hora_inicio'])
+                ->when($horarioId, fn($q) => $q->where('id', '!=', $horarioId))
+                ->exists();
+
+            if ($salaOcupada) {
+                throw ValidationException::withMessages([
+                    'sala_id' => "A sala {$sala->nome} já está sendo usada neste horário por outra matéria da turma FLEX."
+                ]);
+            }
         }
 
-        // Turma já ocupada no slot
-        $turmaOcupada = Horario::where('turma_id', $validated['turma_id'])
-            ->where('dia_semana', $validated['dia_semana'])
-            ->where('hora_inicio', '<', $validated['hora_fim'])
-            ->where('hora_fim', '>', $validated['hora_inicio'])
-            ->when($horarioId, fn($q) => $q->where('id', '!=', $horarioId))
-            ->exists();
+        // ========== VALIDAÇÕES PARA TURMAS NORMAIS ==========
+        if (!$isFlex) {
+            // Conflitos na mesma sala (comportamento original)
+            $horariosNaMesmaSala = Horario::where('sala_id', $validated['sala_id'])
+                ->where('dia_semana', $validated['dia_semana'])
+                ->where('hora_inicio', '<', $validated['hora_fim'])
+                ->where('hora_fim', '>', $validated['hora_inicio'])
+                ->when($horarioId, fn($q) => $q->where('id', '!=', $horarioId))
+                ->get();
 
-        if ($turmaOcupada) {
-            throw ValidationException::withMessages([
-                'turma_id' => 'A turma já possui aula nesse intervalo.'
-            ]);
+            // Capacidade da sala
+            $alunosJaNaSala = Turma::whereIn('id', $horariosNaMesmaSala->pluck('turma_id'))
+                ->sum('quantidade_alunos');
+            $totalProposto = (int)$alunosJaNaSala + (int)($turma->quantidade_alunos ?? 0);
+
+            if ($sala->capacidade !== null && $totalProposto > (int)$sala->capacidade) {
+                throw ValidationException::withMessages([
+                    'sala_id' => "Capacidade da sala ({$sala->capacidade}) seria excedida com {$totalProposto} alunos."
+                ]);
+            }
+
+            // Turma já ocupada no slot
+            $turmaOcupada = Horario::where('turma_id', $validated['turma_id'])
+                ->where('dia_semana', $validated['dia_semana'])
+                ->where('hora_inicio', '<', $validated['hora_fim'])
+                ->where('hora_fim', '>', $validated['hora_inicio'])
+                ->when($horarioId, fn($q) => $q->where('id', '!=', $horarioId))
+                ->exists();
+
+            if ($turmaOcupada) {
+                throw ValidationException::withMessages([
+                    'turma_id' => 'A turma já possui aula nesse intervalo.'
+                ]);
+            }
         }
 
-        // Conflitos do professor
+        // ========== VALIDAÇÕES COMUNS (FLEX e NORMAIS) ==========
+        
+        // Conflitos do professor (aplicável para ambas)
         $profConflitos = Horario::where('professor_id', $validated['professor_id'])
             ->where('dia_semana', $validated['dia_semana'])
             ->where('hora_inicio', '<', $validated['hora_fim'])
@@ -151,20 +193,34 @@ class HorarioController extends Controller
             ->get();
 
         if ($profConflitos->isNotEmpty()) {
-            $podeCrossList = $profConflitos->every(function (Horario $h) use ($validated) {
-                $mesmaSala = (string)$h->sala_id === (string)$validated['sala_id'];
-                $mesmaUc = ($h->uc_id === $validated['uc_id']) ||
-                    (is_null($h->uc_id) &&
-                        isset($validated['uc_nome'], $validated['uc_codigo']) &&
-                        $h->uc_nome === $validated['uc_nome'] &&
-                        $h->uc_codigo === $validated['uc_codigo']);
-                return $mesmaSala && $mesmaUc;
-            });
+            // Para FLEX: apenas verifica se é mesma turma (professor pode ter várias aulas FLEX)
+            if ($isFlex) {
+                $conflitoDiferente = $profConflitos->filter(function ($h) use ($validated) {
+                    return $h->turma_id !== $validated['turma_id'];
+                })->isNotEmpty();
 
-            if (!$podeCrossList) {
-                throw ValidationException::withMessages([
-                    'professor_id' => "O professor(a) {$professor->nome} já possui aula diferente nesse intervalo."
-                ]);
+                if ($conflitoDiferente) {
+                    throw ValidationException::withMessages([
+                        'professor_id' => "O professor(a) {$professor->nome} já possui aula em outra turma nesse intervalo."
+                    ]);
+                }
+            } else {
+                // Para turmas normais: permite cross-list (comportamento original)
+                $podeCrossList = $profConflitos->every(function (Horario $h) use ($validated) {
+                    $mesmaSala = (string)$h->sala_id === (string)$validated['sala_id'];
+                    $mesmaUc = ($h->uc_id === $validated['uc_id']) ||
+                        (is_null($h->uc_id) &&
+                            isset($validated['uc_nome'], $validated['uc_codigo']) &&
+                            $h->uc_nome === $validated['uc_nome'] &&
+                            $h->uc_codigo === $validated['uc_codigo']);
+                    return $mesmaSala && $mesmaUc;
+                });
+
+                if (!$podeCrossList) {
+                    throw ValidationException::withMessages([
+                        'professor_id' => "O professor(a) {$professor->nome} já possui aula diferente nesse intervalo."
+                    ]);
+                }
             }
         }
 

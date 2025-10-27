@@ -14,7 +14,7 @@ return new class extends Migration
             // Relacionamentos
             $table->unsignedBigInteger('turma_id');
             $table->unsignedBigInteger('professor_id');
-            $table->unsignedBigInteger('sala_id');  // Relacionamento com a tabela 'salas' via 'id_sala'
+            $table->unsignedBigInteger('sala_id');
             $table->unsignedBigInteger('uc_id');
 
             // Campos legados
@@ -33,7 +33,7 @@ return new class extends Migration
             // Definições das chaves estrangeiras
             $table->foreign('turma_id')->references('id')->on('turmas')->onDelete('cascade');
             $table->foreign('professor_id')->references('id')->on('professors')->onDelete('cascade');
-            $table->foreign('sala_id')->references('id_sala')->on('salas')->onDelete('cascade'); // Relacionando com 'id_sala' da tabela 'salas'
+            $table->foreign('sala_id')->references('id_sala')->on('salas')->onDelete('cascade');
             $table->foreign('uc_id')->references('id')->on('unidades_curriculares')->onDelete('cascade');
 
             // Índices para melhorar a performance
@@ -42,8 +42,7 @@ return new class extends Migration
             $table->index(['sala_id', 'dia_semana']);
             $table->index(['dia_semana','hora_inicio','hora_fim'], 'horarios_dia_horas_idx');
 
-            // Garantir unicidade de horário por turma e horário
-            $table->unique(['turma_id','dia_semana','hora_inicio','hora_fim'], 'horarios_turma_slot_uk');
+           
         });
     }
 
